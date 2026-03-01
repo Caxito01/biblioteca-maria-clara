@@ -952,42 +952,82 @@
       }
 
       async function setupScanner() {
-        // Verifica suporte básico do browser antes de qualquer coisa
+        // iOS PWA exige HTTPS. Em http:// (exceto localhost) a API sequer existe.
+        const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-          showStatus('Seu navegador não suporta acesso à câmera. Use Chrome ou Firefox recentes.', true);
+          if (!isSecure) {
+            showPermissionHelp('http');
+          } else {
+            showPermissionHelp('unsupported');
+          }
           return;
         }
 
-        // Cria o overlay antes de pedir permissão para dar feedback visual imediato
+        // Verifica o estado atual da permissão (API Permissions — não disponível em todos os browsers)
+        let permState = 'prompt';
+        try {
+          const perm = await navigator.permissions.query({ name: 'camera' });
+          permState = perm.state; // 'granted' | 'denied' | 'prompt'
+        } catch { /* Safari não suporta — ignora */ }
+
+        if (permState === 'denied') {
+          showPermissionHelp('denied');
+          return;
+        }
+
+        // Cria o overlay do scanner
         const overlay = document.createElement('div');
         overlay.className = 'modal open';
         overlay.innerHTML = `
           <div class="modal-content" style="max-width:700px;">
-            <h3 style="margin-top:0">📷 Escanear código de barras</h3>
-            <p class="card-meta" id="scannerMsg">Solicitando permissão para a câmera...</p>
-            <div style="position:relative;width:100%;border-radius:10px;overflow:hidden;background:#000;min-height:300px;">
+            <h3 style="margin-top:0;display:flex;align-items:center;gap:8px;">📷 Escanear código de barras</h3>
+            <p class="card-meta" id="scannerMsg" style="min-height:22px;">Solicitando acesso à câmera…</p>
+
+            <!-- Tela de permissão (visível antes de liberar) -->
+            <div id="permScreen" style="text-align:center;padding:24px 8px;">
+              <div style="font-size:3rem;margin-bottom:10px;">📷</div>
+              <p style="font-weight:700;font-size:1rem;margin:0 0 6px;">Permitir acesso à câmera</p>
+              <p class="card-meta" style="font-size:.88rem;margin:0 0 16px;">
+                O sistema vai pedir permissão agora.<br>
+                Toque em <strong>"Permitir"</strong> quando aparecer a caixa do sistema.
+              </p>
+              <div style="background:rgba(255,255,255,.07);border-radius:10px;padding:12px;font-size:.83rem;color:#c2d4e7;text-align:left;line-height:1.7;">
+                📱 <strong>iPhone/iPad:</strong> Ajustes → Safari → Câmera → Permitir<br>
+                🤖 <strong>Android:</strong> toque no ícone 🔒 na barra de endereço → Câmera → Permitir<br>
+                💻 <strong>Notebook:</strong> ícone 🔒 ou 📷 na barra → Permitir
+              </div>
+              <button id="grantCamBtn" class="btn btn-primary" style="margin-top:16px;min-height:44px;width:100%;font-size:1rem;">
+                Ativar câmera agora
+              </button>
+            </div>
+
+            <!-- Área do vídeo (oculta até liberar) -->
+            <div id="videoArea" style="display:none;position:relative;width:100%;border-radius:10px;overflow:hidden;background:#000;min-height:300px;">
               <video id="videoScanner" playsinline autoplay muted
                 style="width:100%;display:block;border-radius:10px;background:#000;min-height:300px;object-fit:cover"></video>
               <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
-                <div style="width:72%;height:55%;border:3px solid rgba(242,201,76,0.75);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.45)"></div>
+                <div style="width:72%;height:52%;border:3px solid rgba(242,201,76,0.85);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.5)"></div>
               </div>
+              <p style="position:absolute;bottom:10px;left:0;right:0;text-align:center;font-size:.78rem;color:rgba(255,255,255,.7);margin:0;pointer-events:none;">
+                Centralize o código de barras na moldura
+              </p>
             </div>
-            <p class="card-meta" style="margin-top:8px;font-size:.85rem;">
-              💡 Centralize o código de barras dentro da moldura amarela.
-              O sistema detecta automaticamente.
-            </p>
-            <div style="display:flex;justify-content:flex-end;margin-top:10px;gap:8px">
-              <button id="switchCamBtn" class="btn btn-secondary" style="min-height:36px;display:none">🔄 Alternar câmera</button>
-              <button id="stopScannerBtn" class="btn btn-danger" style="min-height:36px">Fechar ✕</button>
+
+            <div style="display:flex;justify-content:flex-end;margin-top:12px;gap:8px;flex-wrap:wrap;">
+              <button id="switchCamBtn" class="btn btn-secondary" style="min-height:36px;display:none;">🔄 Alternar câmera</button>
+              <button id="stopScannerBtn" class="btn btn-danger" style="min-height:36px;">Fechar ✕</button>
             </div>
           </div>
         `;
         document.body.appendChild(overlay);
 
-        const video = overlay.querySelector('#videoScanner');
-        const closeBtn = overlay.querySelector('#stopScannerBtn');
-        const switchBtn = overlay.querySelector('#switchCamBtn');
-        const msgEl = overlay.querySelector('#scannerMsg');
+        const video      = overlay.querySelector('#videoScanner');
+        const closeBtn   = overlay.querySelector('#stopScannerBtn');
+        const switchBtn  = overlay.querySelector('#switchCamBtn');
+        const msgEl      = overlay.querySelector('#scannerMsg');
+        const permScreen = overlay.querySelector('#permScreen');
+        const videoArea  = overlay.querySelector('#videoArea');
+        const grantBtn   = overlay.querySelector('#grantCamBtn');
 
         let stopped = false;
         let currentStream = null;
@@ -996,10 +1036,7 @@
         let deviceIndex = 0;
 
         const stopStream = () => {
-          if (currentStream) {
-            currentStream.getTracks().forEach(t => t.stop());
-            currentStream = null;
-          }
+          if (currentStream) { currentStream.getTracks().forEach(t => t.stop()); currentStream = null; }
         };
 
         const stop = () => {
@@ -1014,80 +1051,75 @@
         overlay.addEventListener('click', (e) => { if (e.target === overlay) stop(); });
 
         const startDecoding = (stream) => {
-          video.srcObject = stream;
           currentStream = stream;
-          msgEl.textContent = 'Câmera ativa — aponte para o código de barras.';
+          video.srcObject = stream;
+          permScreen.style.display = 'none';
+          videoArea.style.display = 'block';
+          msgEl.textContent = '✅ Câmera ativa — aponte para o código de barras.';
 
           if (!window.ZXing || !window.ZXing.BrowserMultiFormatReader) {
-            // Fallback: exibe vídeo ao vivo com instrução manual
-            msgEl.innerHTML = '⚠️ Biblioteca ZXing não carregou. Digite o código manualmente após visualizá-lo na câmera.';
+            msgEl.innerHTML = '⚠️ Leitor não carregou. Visualize o código e digite manualmente.';
             return;
           }
 
           reader = new ZXing.BrowserMultiFormatReader();
-          reader.decodeFromStream(stream, video, (result, err) => {
+          reader.decodeFromStream(stream, video, (result) => {
             if (result && !stopped) {
               const code = normalizeCode(result.getText());
               if (/^\d{10}$|^\d{13}$/.test(code)) {
                 stop();
                 switchMode(code.length === 13 ? 'ean' : 'isbn');
                 els.input.value = code;
-                showStatus('Código detectado: ' + code);
+                showStatus('✅ Código detectado: ' + code);
                 triggerSearch();
               }
             }
           });
         };
 
-        // Tenta iniciar a câmera com diferentes estratégias em ordem de preferência
         const tryCamera = async () => {
-          const constraintsList = [
-            // 1. Câmera traseira no mobile (ideal para scanner)
-            { video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
-            // 2. Câmera traseira sem exact (mais compatível)
-            { video: { facingMode: 'environment' } },
-            // 3. Câmera por deviceId específico (se listVideoInputDevices funcionar)
-            null,
-            // 4. Qualquer câmera disponível
-            { video: true }
-          ];
+          msgEl.textContent = 'Solicitando acesso à câmera…';
 
-          // Tenta pegar lista de dispositivos para opção 3
+          // Lista dispositivos para poder alternar câmeras
           try {
             if (window.ZXing && window.ZXing.BrowserCodeReader) {
               allDevices = await ZXing.BrowserCodeReader.listVideoInputDevices();
-              if (allDevices.length > 1) {
-                switchBtn.style.display = 'inline-flex';
-                // Prefere câmera traseira
-                const backIdx = allDevices.findIndex(d => /back|traseira|rear|environment/i.test(d.label));
-                deviceIndex = backIdx >= 0 ? backIdx : 0;
-                constraintsList[2] = { video: { deviceId: { exact: allDevices[deviceIndex].deviceId } } };
-              } else if (allDevices.length === 1) {
-                constraintsList[2] = { video: { deviceId: { exact: allDevices[0].deviceId } } };
-              }
+              if (allDevices.length > 1) switchBtn.style.display = 'inline-flex';
+              const backIdx = allDevices.findIndex(d => /back|traseira|rear|environment/i.test(d.label));
+              deviceIndex = backIdx >= 0 ? backIdx : 0;
             }
-          } catch { /* silencia erro de listagem */ }
+          } catch { /* ignora */ }
+
+          const constraintsList = [
+            { video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+            { video: { facingMode: 'environment' } },
+            allDevices[deviceIndex] ? { video: { deviceId: { exact: allDevices[deviceIndex].deviceId } } } : null,
+            { video: true }
+          ];
 
           for (const constraints of constraintsList) {
-            if (constraints === null) continue;
+            if (!constraints) continue;
             try {
               const stream = await navigator.mediaDevices.getUserMedia(constraints);
               startDecoding(stream);
               return;
             } catch (err) {
-              // NotAllowedError = usuário negou permissão — para imediatamente
               if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
                 stop();
-                showStatus('Permissão de câmera negada. Clique no ícone 🔒 na barra de endereço e permita o acesso.', true);
+                showPermissionHelp('denied');
                 return;
               }
-              // Outros erros: tenta próxima constraint
+              if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                stop();
+                showPermissionHelp('notfound');
+                return;
+              }
+              // Tenta próxima constraint
             }
           }
 
-          // Nenhuma constraint funcionou
           stop();
-          showStatus('Não foi possível acessar a câmera. Verifique as permissões do navegador e tente em HTTPS ou localhost.', true);
+          showPermissionHelp('failed');
         };
 
         // Botão de alternar câmera
@@ -1108,7 +1140,76 @@
           }
         });
 
-        await tryCamera();
+        // Se a permissão já foi concedida, inicia direto; caso contrário mostra tela de instrução
+        if (permState === 'granted') {
+          permScreen.style.display = 'none';
+          await tryCamera();
+        } else {
+          // Mostra tela de instrução primeiro; usuário clica em "Ativar câmera agora"
+          grantBtn.addEventListener('click', async () => {
+            grantBtn.disabled = true;
+            grantBtn.textContent = 'Aguardando permissão…';
+            await tryCamera();
+          });
+        }
+      }
+
+      // Exibe painel de ajuda com instruções específicas por tipo de erro
+      function showPermissionHelp(type) {
+        const msgs = {
+          denied: {
+            icon: '🔒',
+            title: 'Acesso à câmera bloqueado',
+            body: `O navegador bloqueou o acesso. Para desbloquear:<br><br>
+              📱 <strong>iPhone/iPad:</strong><br>
+              &nbsp;&nbsp;Ajustes do iPhone → Safari → Câmera → <strong>Permitir</strong><br><br>
+              🤖 <strong>Android Chrome:</strong><br>
+              &nbsp;&nbsp;Toque no ícone 🔒 na barra de endereço → Permissões → Câmera → <strong>Permitir</strong><br><br>
+              💻 <strong>Desktop:</strong><br>
+              &nbsp;&nbsp;Clique no ícone 📷 ou 🔒 na barra de endereço → Permitir câmera<br><br>
+              Depois, recarregue a página e tente novamente.`
+          },
+          notfound: {
+            icon: '📷',
+            title: 'Câmera não encontrada',
+            body: 'Nenhuma câmera foi detectada no dispositivo. Verifique se o dispositivo possui câmera e se está habilitada nas configurações do sistema.'
+          },
+          http: {
+            icon: '🔐',
+            title: 'Conexão segura necessária',
+            body: `O acesso à câmera exige <strong>HTTPS</strong>.<br><br>
+              Use o link do GitHub Pages:<br>
+              <a href="https://caxito01.github.io/biblioteca-maria-clara/" target="_blank" style="color:#ffd36b;word-break:break-all;">
+                https://caxito01.github.io/biblioteca-maria-clara/
+              </a><br><br>
+              Ou acesse via <strong>localhost</strong> no computador.`
+          },
+          unsupported: {
+            icon: '🌐',
+            title: 'Navegador não suportado',
+            body: 'Use <strong>Chrome</strong>, <strong>Safari</strong> ou <strong>Firefox</strong> atualizados para usar o scanner de câmera.'
+          },
+          failed: {
+            icon: '⚠️',
+            title: 'Não foi possível acessar a câmera',
+            body: 'Verifique se outra aplicação não está usando a câmera e tente novamente. Se o problema persistir, use a busca manual por ISBN.'
+          }
+        };
+
+        const m = msgs[type] || msgs.failed;
+        const helpOverlay = document.createElement('div');
+        helpOverlay.className = 'modal open';
+        helpOverlay.innerHTML = `
+          <div class="modal-content" style="max-width:480px;text-align:center;">
+            <div style="font-size:2.8rem;margin-bottom:10px;">${m.icon}</div>
+            <h3 style="margin:0 0 10px;">${m.title}</h3>
+            <div class="card-meta" style="text-align:left;line-height:1.8;font-size:.9rem;">${m.body}</div>
+            <button class="btn btn-primary" style="margin-top:18px;min-height:44px;width:100%;" id="closeHelp">Entendi</button>
+          </div>
+        `;
+        document.body.appendChild(helpOverlay);
+        helpOverlay.querySelector('#closeHelp').addEventListener('click', () => helpOverlay.remove());
+        helpOverlay.addEventListener('click', (e) => { if (e.target === helpOverlay) helpOverlay.remove(); });
       }
 
       function setupEvents() {
