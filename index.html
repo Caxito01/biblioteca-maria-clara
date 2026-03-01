@@ -951,12 +951,27 @@
         }
       }
 
+      // Detecta se está rodando como PWA instalado (standalone)
+      function isPwa() {
+        return window.matchMedia('(display-mode: standalone)').matches
+          || window.navigator.standalone === true
+          || document.referrer.includes('android-app://');
+      }
+
+      // Detecta iOS
+      function isIos() {
+        return /iphone|ipad|ipod/i.test(navigator.userAgent)
+          || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      }
+
       async function setupScanner() {
         // iOS PWA exige HTTPS. Em http:// (exceto localhost) a API sequer existe.
         const isSecure = location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
           if (!isSecure) {
             showPermissionHelp('http');
+          } else if (isIos() && isPwa()) {
+            showPermissionHelp('ios_pwa');
           } else {
             showPermissionHelp('unsupported');
           }
@@ -971,7 +986,7 @@
         } catch { /* Safari não suporta — ignora */ }
 
         if (permState === 'denied') {
-          showPermissionHelp('denied');
+          showPermissionHelp(isIos() && isPwa() ? 'ios_pwa_denied' : 'denied');
           return;
         }
 
@@ -991,6 +1006,13 @@
                 O sistema vai pedir permissão agora.<br>
                 Toque em <strong>"Permitir"</strong> quando aparecer a caixa do sistema.
               </p>
+              <!-- Aviso especial para iOS PWA instalado -->
+              <div id="iosPwaNote" style="display:none;background:rgba(212,160,23,.15);border:1px solid rgba(212,160,23,.5);border-radius:10px;padding:12px;font-size:.85rem;color:#fde68a;text-align:left;line-height:1.7;margin-bottom:14px;">
+                📱 <strong>App instalado no iPhone/iPad:</strong><br>
+                Se a câmera não abrir, vá em:<br>
+                <strong>Ajustes → Safari → Câmera → Permitir</strong><br>
+                e volte ao app para tentar novamente.
+              </div>
               <div style="background:rgba(255,255,255,.07);border-radius:10px;padding:12px;font-size:.83rem;color:#c2d4e7;text-align:left;line-height:1.7;">
                 📱 <strong>iPhone/iPad:</strong> Ajustes → Safari → Câmera → Permitir<br>
                 🤖 <strong>Android:</strong> toque no ícone 🔒 na barra de endereço → Câmera → Permitir<br>
@@ -1028,6 +1050,13 @@
         const permScreen = overlay.querySelector('#permScreen');
         const videoArea  = overlay.querySelector('#videoArea');
         const grantBtn   = overlay.querySelector('#grantCamBtn');
+        const iosPwaNote = overlay.querySelector('#iosPwaNote');
+
+        // Mostra aviso especial se for iOS rodando como app instalado
+        if (isIos() && isPwa()) {
+          iosPwaNote.style.display = 'block';
+          grantBtn.textContent = '📷 Ativar câmera (verificar Ajustes se não abrir)';
+        }
 
         let stopped = false;
         let currentStream = null;
@@ -1161,13 +1190,39 @@
             icon: '🔒',
             title: 'Acesso à câmera bloqueado',
             body: `O navegador bloqueou o acesso. Para desbloquear:<br><br>
-              📱 <strong>iPhone/iPad:</strong><br>
+              📱 <strong>iPhone/iPad (Safari):</strong><br>
               &nbsp;&nbsp;Ajustes do iPhone → Safari → Câmera → <strong>Permitir</strong><br><br>
               🤖 <strong>Android Chrome:</strong><br>
               &nbsp;&nbsp;Toque no ícone 🔒 na barra de endereço → Permissões → Câmera → <strong>Permitir</strong><br><br>
               💻 <strong>Desktop:</strong><br>
               &nbsp;&nbsp;Clique no ícone 📷 ou 🔒 na barra de endereço → Permitir câmera<br><br>
               Depois, recarregue a página e tente novamente.`
+          },
+          ios_pwa: {
+            icon: '📱',
+            title: 'Permitir câmera no app (iPhone/iPad)',
+            body: `No app instalado no iPhone/iPad, a permissão de câmera precisa ser liberada nas <strong>Configurações do sistema</strong>, não dentro do app.<br><br>
+              <strong>Passo a passo:</strong><br><br>
+              1️⃣ Saia do app e abra os <strong>Ajustes</strong> do iPhone<br><br>
+              2️⃣ Role para baixo e encontre <strong>Safari</strong><br><br>
+              3️⃣ Toque em <strong>Câmera</strong> → selecione <strong>Permitir</strong><br><br>
+              4️⃣ Volte ao app e toque em <strong>Escanear</strong> novamente<br><br>
+              <div style="background:rgba(212,160,23,.15);border:1px solid rgba(212,160,23,.4);border-radius:8px;padding:10px;font-size:.83rem;margin-top:4px;">
+                💡 Caminho rápido:<br>
+                <strong>Ajustes → Safari → Câmera → Permitir</strong>
+              </div>`
+          },
+          ios_pwa_denied: {
+            icon: '🔒',
+            title: 'Câmera bloqueada no app (iPhone/iPad)',
+            body: `A câmera foi bloqueada nas configurações do sistema. Para desbloquear:<br><br>
+              1️⃣ Abra os <strong>Ajustes</strong> do iPhone<br><br>
+              2️⃣ Role para baixo → toque em <strong>Safari</strong><br><br>
+              3️⃣ Toque em <strong>Câmera</strong> → mude para <strong>Permitir</strong><br><br>
+              4️⃣ Volte ao app e toque em Escanear novamente<br><br>
+              <div style="background:rgba(212,160,23,.15);border:1px solid rgba(212,160,23,.4);border-radius:8px;padding:10px;font-size:.83rem;">
+                💡 <strong>Ajustes → Safari → Câmera → Permitir</strong>
+              </div>`
           },
           notfound: {
             icon: '📷',
