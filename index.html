@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#0b2545" />
+  <title>Sistema de Consulta de Livros Maria Clara</title>
+  <style>
+    :root {
+      --bg: #071629;
+      --bg-soft: #0b2545;
+      --panel: #102a43;
+      --panel-2: #16395f;
+      --text: #f8fbff;
+      --muted: #c2d4e7;
+      --accent: #d4a017;
+      --accent-2: #f2c94c;
+      --danger: #ff6b6b;
+      --success: #42d392;
+      --shadow: 0 12px 28px rgba(0, 0, 0, 0.28);
+      --radius: 14px;
+      --radius-sm: 10px;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 450px at 80% -10%, rgba(212, 160, 23, 0.16), transparent 70%),
+        radial-gradient(1000px 420px at 5% 0%, rgba(255, 255, 255, 0.06), transparent 72%),
+        linear-gradient(170deg, var(--bg) 0%, #091e35 42%, var(--bg-soft) 100%);
+      min-height: 100dvh;
+    }
+
+    .container {
+      width: min(1120px, 92vw);
+      margin: 0 auto;
+      padding: 20px 0 48px;
+    }
+
+    header {
+      text-align: center;
+      padding: 20px 0 12px;
+    }
+
+    .brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      letter-spacing: 0.4px;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      padding: 10px 16px;
+      border-radius: 999px;
+      backdrop-filter: blur(6px);
+    }
+
+    h1 {
+      margin: 16px 0 6px;
+      font-size: clamp(1.45rem, 2vw + 0.8rem, 2.3rem);
+      line-height: 1.2;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.98rem;
+    }
+
+    .search-panel {
+      margin: 24px auto 14px;
+      background: linear-gradient(180deg, rgba(16, 42, 67, 0.8), rgba(16, 42, 67, 0.65));
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      box-shadow: var(--shadow);
+      border-radius: var(--radius);
+      padding: 18px;
+      position: sticky;
+      top: 10px;
+      z-index: 20;
+      backdrop-filter: blur(9px);
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .tab-btn {
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      border-radius: 11px;
+      padding: 10px 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s ease;
+    }
+
+    .tab-btn.active {
+      background: linear-gradient(180deg, #1f4f7a, #16395f);
+      border-color: rgba(212, 160, 23, 0.7);
+      box-shadow: inset 0 0 0 1px rgba(242, 201, 76, 0.3);
+    }
+
+    .search-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+    }
+
+    .input {
+      width: 100%;
+      border-radius: 11px;
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      background: rgba(7, 22, 41, 0.8);
+      color: #fff;
+      padding: 13px 14px;
+      font-size: 1rem;
+      outline: none;
+    }
+
+    .input:focus {
+      border-color: var(--accent-2);
+      box-shadow: 0 0 0 3px rgba(212, 160, 23, 0.2);
+    }
+
+    .btn {
+      border: none;
+      border-radius: 11px;
+      color: #fff;
+      font-weight: 700;
+      cursor: pointer;
+      padding: 0 16px;
+      min-height: 46px;
+      transition: transform .08s ease, filter .2s ease;
+    }
+
+    .btn:active { transform: translateY(1px); }
+    .btn-primary { background: linear-gradient(180deg, #d4a017, #b8860b); }
+    .btn-secondary { background: linear-gradient(180deg, #244c78, #19395b); border: 1px solid rgba(255,255,255,.15); }
+    .btn-danger { background: linear-gradient(180deg, #c24a4a, #9d3030); }
+
+    .inline-note {
+      margin-top: 10px;
+      color: var(--muted);
+      font-size: .9rem;
+      min-height: 20px;
+    }
+
+    .results {
+      margin-top: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(22, 57, 95, 0.92), rgba(13, 38, 63, 0.94));
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-sm);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      min-height: 360px;
+      cursor: pointer;
+    }
+
+    .cover-wrap {
+      width: 100%;
+      height: 255px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, rgba(255,255,255,.09), rgba(255,255,255,.02));
+      padding: 14px;
+    }
+
+    .book-cover {
+      width: 170px;
+      height: 235px;
+      object-fit: cover;
+      border-radius: 6px;
+      box-shadow:
+        -6px 10px 18px rgba(0, 0, 0, 0.45),
+        -1px 0 0 rgba(255, 255, 255, 0.22),
+        inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+      transform: perspective(900px) rotateY(-8deg);
+      background: #eee;
+    }
+
+    .placeholder {
+      width: 170px;
+      height: 235px;
+      border-radius: 6px;
+      display: grid;
+      place-items: center;
+      text-align: center;
+      padding: 12px;
+      background: linear-gradient(160deg, #1f4f7a, #0f2a47);
+      border: 1px solid rgba(255,255,255,.2);
+      box-shadow: -6px 10px 18px rgba(0, 0, 0, 0.45);
+      transform: perspective(900px) rotateY(-8deg);
+      font-weight: 700;
+      color: #f7fbff;
+      line-height: 1.3;
+      font-size: .92rem;
+    }
+
+    .card-body { padding: 12px; display: grid; gap: 8px; }
+    .card-title { margin: 0; font-size: 1rem; line-height: 1.35; }
+    .card-meta { margin: 0; color: var(--muted); font-size: .9rem; }
+
+    .state-box {
+      margin-top: 14px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px dashed rgba(255, 255, 255, 0.22);
+      border-radius: 12px;
+      padding: 16px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    .history {
+      margin-top: 16px;
+      background: rgba(16, 42, 67, 0.62);
+      border: 1px solid rgba(255, 255, 255, 0.11);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .history-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .chip {
+      border: 1px solid rgba(255,255,255,.24);
+      background: rgba(255,255,255,.07);
+      color: #fff;
+      border-radius: 999px;
+      padding: 8px 11px;
+      font-size: .86rem;
+      cursor: pointer;
+    }
+
+    .modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(5, 15, 30, 0.78);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 40;
+    }
+
+    .modal.open { display: flex; }
+
+    .modal-content {
+      width: min(980px, 100%);
+      max-height: 92dvh;
+      overflow: auto;
+      background: linear-gradient(180deg, #0f2a47, #102a43);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 14px;
+      box-shadow: var(--shadow);
+      padding: 16px;
+    }
+
+    .modal-top {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      gap: 16px;
+    }
+
+    .details h2 { margin: 0 0 4px; }
+    .sub { color: var(--muted); margin: 0 0 10px; }
+
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(170px, 1fr));
+      gap: 8px 14px;
+      margin: 10px 0;
+    }
+
+    .info-item { font-size: .95rem; }
+    .label { color: var(--muted); font-weight: 600; }
+
+    .actions {
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .description {
+      margin-top: 10px;
+      background: rgba(255,255,255,.05);
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 10px;
+      padding: 12px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .spinner {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      border: 4px solid rgba(255,255,255,.22);
+      border-top-color: var(--accent-2);
+      animation: spin 1s linear infinite;
+      margin: 8px auto;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+
+    /* ── Responsividade: Notebook / Tablet ── */
+    @media (max-width: 1024px) {
+      .container { width: 96vw; }
+      .results { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+    }
+
+    @media (max-width: 860px) {
+      .search-row { grid-template-columns: 1fr 1fr; }
+      .search-row .input { grid-column: 1 / -1; }
+      .modal-top { grid-template-columns: 1fr; }
+      .cover-wrap { height: auto; padding: 10px; }
+      .book-cover, .placeholder { width: 145px; height: 210px; margin: 0 auto; display: block; }
+      .info-grid { grid-template-columns: 1fr 1fr; }
+      .modal-content { padding: 12px; }
+    }
+
+    /* ── Responsividade: Celular ── */
+    @media (max-width: 540px) {
+      body { font-size: 15px; }
+      .container { width: 98vw; padding: 10px 0 32px; }
+      h1 { font-size: 1.3rem; }
+      .brand { font-size: .88rem; padding: 8px 12px; }
+      .search-panel { padding: 12px; top: 6px; border-radius: 12px; }
+      .tab-btn { padding: 9px 4px; font-size: .84rem; border-radius: 9px; }
+      .search-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+      .search-row .input { grid-column: 1 / -1; font-size: .95rem; padding: 11px 12px; }
+      .btn { font-size: .88rem; padding: 0 10px; min-height: 42px; }
+      .results { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+      .cover-wrap { height: 220px; }
+      .book-cover, .placeholder { width: 130px; height: 190px; }
+      .card-title { font-size: .92rem; }
+      .modal { padding: 8px; }
+      .modal-content { border-radius: 12px; padding: 10px; max-height: 96dvh; }
+      .modal-top { gap: 10px; }
+      .info-grid { grid-template-columns: 1fr; gap: 6px 0; }
+      .description { font-size: .9rem; padding: 10px; }
+      .history { padding: 10px; border-radius: 10px; }
+      .chip { font-size: .8rem; padding: 6px 9px; }
+    }
+
+    @media print {
+      body { background: #fff; color: #000; }
+      .search-panel, .history, .state-box, .results, .modal-close, .actions, header { display: none !important; }
+      .modal { display: block !important; position: static; background: #fff; }
+      .modal-content { border: 0; box-shadow: none; max-height: unset; padding: 0; width: 100%; }
+      .description { border: 1px solid #ddd; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="brand">📚 Biblioteca Maria Clara</div>
+      <h1>Sistema de Consulta de Livros Maria Clara</h1>
+      <p class="subtitle">Busque por ISBN, EAN ou Título e veja detalhes completos.</p>
+    </header>
+
+    <section class="search-panel" aria-label="Painel de busca">
+      <div class="tabs" role="tablist" aria-label="Tipo de busca">
+        <button class="tab-btn active" data-mode="isbn" role="tab" aria-selected="true">ISBN</button>
+        <button class="tab-btn" data-mode="ean" role="tab" aria-selected="false">EAN</button>
+        <button class="tab-btn" data-mode="title" role="tab" aria-selected="false">Título / Autor(a)</button>
+      </div>
+
+      <div class="search-row">
+        <label class="sr-only" for="searchInput">Buscar livro</label>
+        <input id="searchInput" class="input" placeholder="Digite ISBN, EAN ou título" autocomplete="off" />
+        <button id="searchBtn" class="btn btn-primary">Buscar</button>
+        <button id="scanBtn" class="btn btn-secondary" title="Escanear com a câmera">📷 Escanear</button>
+      </div>
+      <div id="statusNote" class="inline-note" aria-live="polite"></div>
+    </section>
+
+    <section class="history" aria-label="Histórico de buscas">
+      <div class="history-header">
+        <strong>Buscas recentes</strong>
+        <button id="clearHistoryBtn" class="btn btn-danger" style="min-height:34px;padding:0 10px;font-size:.82rem;">Limpar</button>
+      </div>
+      <div id="historyList" class="history-list"></div>
+    </section>
+
+    <div id="stateBox" class="state-box">Use os exemplos: <strong>9788535902778</strong>, <strong>9780141439518</strong> ou <strong>O Pequeno Príncipe</strong>.</div>
+    <section id="results" class="results" aria-live="polite"></section>
+  </div>
+
+  <div id="bookModal" class="modal" aria-hidden="true" role="dialog" aria-modal="true">
+    <div class="modal-content" id="printArea">
+      <button id="closeModal" class="btn btn-secondary modal-close" style="float:right;min-height:36px;">Fechar ✕</button>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+  <script>
+    (() => {
+      const API_TIMEOUT = 9000;
+      const HISTORY_KEY = 'biblioteca_buscas_recentes_v1';
+      const MAX_HISTORY = 8;
+
+      let currentMode = 'isbn';
+      let debounceTimer = null;
+      let titleSearchToken = 0;
+      let currentBookForPrint = null;
+
+      const els = {
+        tabs: [...document.querySelectorAll('.tab-btn')],
+        input: document.getElementById('searchInput'),
+        searchBtn: document.getElementById('searchBtn'),
+        scanBtn: document.getElementById('scanBtn'),
+        statusNote: document.getElementById('statusNote'),
+        stateBox: document.getElementById('stateBox'),
+        results: document.getElementById('results'),
+        historyList: document.getElementById('historyList'),
+        clearHistoryBtn: document.getElementById('clearHistoryBtn'),
+        modal: document.getElementById('bookModal'),
+        modalBody: document.getElementById('modalBody'),
+        closeModal: document.getElementById('closeModal')
+      };
+
+      function sanitizeText(input) {
+        return String(input || '').replace(/[<>]/g, '').trim();
+      }
+
+      function normalizeCode(code) {
+        return sanitizeText(code).replace(/[\s-]/g, '');
+      }
+
+      function toDateString(dateValue) {
+        if (!dateValue) return 'Não informado';
+        return String(dateValue);
+      }
+
+      function withTimeout(promise, ms = API_TIMEOUT) {
+        return Promise.race([
+          promise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))
+        ]);
+      }
+
+      async function safeFetchJson(url) {
+        try {
+          const response = await withTimeout(fetch(url));
+          if (!response.ok) throw new Error('http_' + response.status);
+          return await response.json();
+        } catch {
+          return null;
+        }
+      }
+
+      function parseIdentifiers(ids = []) {
+        const out = { isbn10: '', isbn13: '' };
+        ids.forEach((id) => {
+          if (id.type === 'ISBN_10') out.isbn10 = id.identifier;
+          if (id.type === 'ISBN_13') out.isbn13 = id.identifier;
+        });
+        return out;
+      }
+
+      function formatAuthors(authors) {
+        if (!authors || !authors.length) return 'Não informado';
+        return authors.join(', ');
+      }
+
+      function pickCover(book) {
+        return book.coverLarge || book.coverMedium || book.coverSmall || '';
+      }
+
+      function placeholderSvgDataUri(title = 'Sem capa') {
+        const safe = encodeURIComponent((title || 'Sem capa').slice(0, 80));
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='600'>
+          <defs>
+            <linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
+              <stop offset='0%' stop-color='#1f4f7a' />
+              <stop offset='100%' stop-color='#0f2a47' />
+            </linearGradient>
+          </defs>
+          <rect width='100%' height='100%' fill='url(#g)'/>
+          <rect x='24' y='24' width='352' height='552' fill='none' stroke='rgba(255,255,255,0.35)'/>
+          <text x='200' y='290' text-anchor='middle' fill='white' font-size='26' font-family='Arial' font-weight='700'>${safe}</text>
+        </svg>`;
+        return `data:image/svg+xml;charset=utf-8,${svg}`;
+      }
+
+      function toUnifiedFromGoogle(item = {}) {
+        const v = item.volumeInfo || {};
+        const ids = parseIdentifiers(v.industryIdentifiers || []);
+        const isbn13 = ids.isbn13 || '';
+        return {
+          id: item.id || isbn13 || v.title || Math.random().toString(36).slice(2),
+          title: v.title || 'Título não informado',
+          subtitle: v.subtitle || '',
+          authors: v.authors || [],
+          publisher: v.publisher || '',
+          publishedDate: v.publishedDate || '',
+          pageCount: v.pageCount || null,
+          isbn10: ids.isbn10 || '',
+          isbn13: ids.isbn13 || '',
+          categories: v.categories || [],
+          language: v.language || '',
+          description: typeof v.description === 'string' ? v.description : '',
+          coverSmall: v.imageLinks?.smallThumbnail || '',
+          coverMedium: v.imageLinks?.thumbnail || '',
+          coverLarge: v.imageLinks?.large || v.imageLinks?.extraLarge || '',
+          averageRating: v.averageRating || null,
+          previewLink: v.previewLink || '',
+          sourceGoogle: true,
+          sourceOpen: false
+        };
+      }
+
+      function toUnifiedFromOpenByIsbn(openData, fallbackIsbn = '') {
+        if (!openData) return null;
+        const isbn10 = Array.isArray(openData.isbn_10) ? openData.isbn_10[0] : '';
+        const isbn13 = Array.isArray(openData.isbn_13) ? openData.isbn_13[0] : (fallbackIsbn.length === 13 ? fallbackIsbn : '');
+        const title = openData.title || 'Título não informado';
+
+        return {
+          id: openData.key || isbn13 || title,
+          title,
+          subtitle: openData.subtitle || '',
+          authors: [],
+          publisher: Array.isArray(openData.publishers) ? openData.publishers[0] : '',
+          publishedDate: openData.publish_date || '',
+          pageCount: openData.number_of_pages || null,
+          isbn10,
+          isbn13,
+          categories: Array.isArray(openData.subjects) ? openData.subjects.slice(0, 8) : [],
+          language: Array.isArray(openData.languages) && openData.languages[0]?.key ? openData.languages[0].key.replace('/languages/', '') : '',
+          description: typeof openData.description === 'string'
+            ? openData.description
+            : (openData.description?.value || ''),
+          coverSmall: isbn13 ? `https://covers.openlibrary.org/b/isbn/${isbn13}-S.jpg` : '',
+          coverMedium: isbn13 ? `https://covers.openlibrary.org/b/isbn/${isbn13}-M.jpg` : '',
+          coverLarge: isbn13 ? `https://covers.openlibrary.org/b/isbn/${isbn13}-L.jpg` : '',
+          averageRating: null,
+          previewLink: '',
+          sourceGoogle: false,
+          sourceOpen: true
+        };
+      }
+
+      function mergeBooks(googleBook, openBook) {
+        if (!googleBook && !openBook) return null;
+        if (!googleBook) return openBook;
+        if (!openBook) return googleBook;
+
+        return {
+          id: googleBook.id || openBook.id,
+          title: googleBook.title || openBook.title,
+          subtitle: googleBook.subtitle || openBook.subtitle,
+          authors: googleBook.authors?.length ? googleBook.authors : openBook.authors,
+          publisher: googleBook.publisher || openBook.publisher,
+          publishedDate: googleBook.publishedDate || openBook.publishedDate,
+          pageCount: googleBook.pageCount || openBook.pageCount,
+          isbn10: googleBook.isbn10 || openBook.isbn10,
+          isbn13: googleBook.isbn13 || openBook.isbn13,
+          categories: googleBook.categories?.length ? googleBook.categories : openBook.categories,
+          language: googleBook.language || openBook.language,
+          description: googleBook.description || openBook.description,
+          coverSmall: googleBook.coverSmall || openBook.coverSmall,
+          coverMedium: googleBook.coverMedium || openBook.coverMedium,
+          coverLarge: googleBook.coverLarge || openBook.coverLarge,
+          averageRating: googleBook.averageRating ?? openBook.averageRating,
+          previewLink: googleBook.previewLink || openBook.previewLink,
+          sourceGoogle: true,
+          sourceOpen: true
+        };
+      }
+
+      async function fetchByCode(code) {
+        const clean = normalizeCode(code);
+        if (!/^\d{10}|\d{13}$/.test(clean) && !(clean.length === 10 || clean.length === 13)) {
+          return { error: 'Código deve conter 10 ou 13 dígitos (ISBN/EAN).' };
+        }
+
+        const [googleData, openData] = await Promise.all([
+          safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(clean)}`),
+          safeFetchJson(`https://openlibrary.org/isbn/${encodeURIComponent(clean)}.json`)
+        ]);
+
+        const googleBook = googleData?.items?.[0] ? toUnifiedFromGoogle(googleData.items[0]) : null;
+        const openBook = toUnifiedFromOpenByIsbn(openData, clean);
+        const merged = mergeBooks(googleBook, openBook);
+
+        if (!merged) return { error: 'Nenhum livro encontrado para esse código.' };
+        return { data: merged };
+      }
+
+      async function fetchByTitle(title) {
+        const clean = sanitizeText(title);
+        if (!clean || clean.length < 2) return { error: 'Digite ao menos 2 caracteres para buscar por título.' };
+
+        const [googleData, openData] = await Promise.all([
+          safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(clean)}+OR+inauthor:${encodeURIComponent(clean)}&maxResults=20`),
+          safeFetchJson(`https://openlibrary.org/search.json?q=${encodeURIComponent(clean)}&limit=20`)
+        ]);
+
+        const googleBooks = (googleData?.items || []).map(toUnifiedFromGoogle);
+        const openBooks = (openData?.docs || []).slice(0, 20).map((doc, idx) => ({
+          id: doc.key || `open-${idx}`,
+          title: doc.title || 'Título não informado',
+          subtitle: doc.subtitle || '',
+          authors: doc.author_name || [],
+          publisher: Array.isArray(doc.publisher) ? doc.publisher[0] : '',
+          publishedDate: doc.first_publish_year ? String(doc.first_publish_year) : '',
+          pageCount: doc.number_of_pages_median || null,
+          isbn10: Array.isArray(doc.isbn) ? (doc.isbn.find(i => i.length === 10) || '') : '',
+          isbn13: Array.isArray(doc.isbn) ? (doc.isbn.find(i => i.length === 13) || '') : '',
+          categories: Array.isArray(doc.subject) ? doc.subject.slice(0, 6) : [],
+          language: Array.isArray(doc.language) ? doc.language[0] : '',
+          description: '',
+          coverSmall: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-S.jpg` : '',
+          coverMedium: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-M.jpg` : '',
+          coverLarge: doc.cover_i ? `https://covers.openlibrary.org/b/id/${doc.cover_i}-L.jpg` : '',
+          averageRating: null,
+          previewLink: '',
+          sourceGoogle: false,
+          sourceOpen: true
+        }));
+
+        const byIsbn = new Map();
+        function keyFor(b) {
+          return b.isbn13 || b.isbn10 || (b.title + '|' + (b.authors?.[0] || '')).toLowerCase();
+        }
+
+        googleBooks.forEach((g) => byIsbn.set(keyFor(g), g));
+        openBooks.forEach((o) => {
+          const key = keyFor(o);
+          if (byIsbn.has(key)) {
+            byIsbn.set(key, mergeBooks(byIsbn.get(key), o));
+          } else {
+            byIsbn.set(key, o);
+          }
+        });
+
+        const data = [...byIsbn.values()].slice(0, 24);
+        if (!data.length) return { error: 'Nenhum livro encontrado para esse título.' };
+        return { data };
+      }
+
+      function setLoading(isLoading, text = 'Buscando...') {
+        if (isLoading) {
+          els.statusNote.textContent = text;
+          els.stateBox.innerHTML = `<div class="spinner" aria-label="Carregando"></div><div>${text}</div>`;
+        }
+      }
+
+      function clearLoading() {
+        els.statusNote.textContent = '';
+      }
+
+      function escapeHtml(str = '') {
+        return String(str)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function renderCard(book) {
+        const cover = pickCover(book);
+        const coverHtml = cover
+          ? `<img class="book-cover" loading="lazy" src="${escapeHtml(cover)}" alt="Capa do livro ${escapeHtml(book.title)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='grid';" /><div class="placeholder" style="display:none">${escapeHtml(book.title)}</div>`
+          : `<div class="placeholder">${escapeHtml(book.title)}</div>`;
+
+        return `
+          <article class="card" data-book-id="${escapeHtml(book.id)}">
+            <div class="cover-wrap">${coverHtml}</div>
+            <div class="card-body">
+              <h3 class="card-title">${escapeHtml(book.title)}</h3>
+              <p class="card-meta">${escapeHtml(book.subtitle || 'Sem subtítulo')}</p>
+              <p class="card-meta">${escapeHtml(formatAuthors(book.authors))}</p>
+              <p class="card-meta">${escapeHtml(book.publishedDate || 'Data não informada')}</p>
+            </div>
+          </article>
+        `;
+      }
+
+      function renderResults(books) {
+        if (!books || !books.length) {
+          els.results.innerHTML = '';
+          els.stateBox.textContent = 'Nenhum resultado encontrado.';
+          return;
+        }
+        els.stateBox.textContent = `${books.length} resultado(s) encontrado(s). Clique em um livro para ver detalhes.`;
+        els.results.innerHTML = books.map(renderCard).join('');
+
+        els.results.querySelectorAll('.card').forEach((card) => {
+          card.addEventListener('click', () => {
+            const id = card.getAttribute('data-book-id');
+            const selected = books.find((b) => String(b.id) === String(id));
+            if (selected) openBookModal(selected);
+          });
+        });
+      }
+
+      function renderBookDetails(book) {
+        const cover = pickCover(book) || placeholderSvgDataUri(book.title);
+        const categories = book.categories?.length ? book.categories.join(', ') : 'Não informado';
+        const description = book.description || 'Sinopse não disponível.';
+        const avg = book.averageRating ? `${book.averageRating} / 5` : 'Não disponível';
+
+        return `
+          <div class="modal-top">
+            <div class="cover-wrap" style="height:auto;">
+              <img class="book-cover" src="${escapeHtml(cover)}" alt="Capa de ${escapeHtml(book.title)}" onerror="this.src='${placeholderSvgDataUri(book.title)}'" />
+            </div>
+            <div class="details">
+              <h2>${escapeHtml(book.title)}</h2>
+              <p class="sub">${escapeHtml(book.subtitle || 'Sem subtítulo')}</p>
+
+              <div class="info-grid">
+                <div class="info-item"><span class="label">Autores:</span> ${escapeHtml(formatAuthors(book.authors))}</div>
+                <div class="info-item"><span class="label">Editora:</span> ${escapeHtml(book.publisher || 'Não informada')}</div>
+                <div class="info-item"><span class="label">Publicação:</span> ${escapeHtml(toDateString(book.publishedDate))}</div>
+                <div class="info-item"><span class="label">Páginas:</span> ${book.pageCount || 'Não informado'}</div>
+                <div class="info-item"><span class="label">ISBN-10:</span> <span id="isbn10Field">${escapeHtml(book.isbn10 || 'Não informado')}</span></div>
+                <div class="info-item"><span class="label">ISBN-13:</span> <span id="isbn13Field">${escapeHtml(book.isbn13 || 'Não informado')}</span></div>
+                <div class="info-item"><span class="label">Categorias:</span> ${escapeHtml(categories)}</div>
+                <div class="info-item"><span class="label">Idioma:</span> ${escapeHtml(book.language || 'Não informado')}</div>
+                <div class="info-item"><span class="label">Avaliação:</span> ${escapeHtml(avg)}</div>
+                <div class="info-item"><span class="label">Prévia:</span> ${book.previewLink ? `<a href="${escapeHtml(book.previewLink)}" target="_blank" rel="noopener noreferrer" style="color:#ffd36b">Abrir</a>` : 'Não disponível'}</div>
+              </div>
+
+              <div class="actions">
+                <button id="copyIsbnBtn" class="btn btn-secondary">Copiar ISBN</button>
+                <button id="printBtn" class="btn btn-primary">Imprimir ficha</button>
+              </div>
+
+              <div class="description">${escapeHtml(description)}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      function openBookModal(book) {
+        currentBookForPrint = book;
+        els.modalBody.innerHTML = renderBookDetails(book);
+        els.modal.classList.add('open');
+        els.modal.setAttribute('aria-hidden', 'false');
+
+        const copyBtn = document.getElementById('copyIsbnBtn');
+        const printBtn = document.getElementById('printBtn');
+
+        copyBtn?.addEventListener('click', async () => {
+          const isbn = book.isbn13 || book.isbn10;
+          if (!isbn) {
+            showStatus('ISBN não disponível para cópia.', true);
+            return;
+          }
+          try {
+            await navigator.clipboard.writeText(isbn);
+            showStatus('ISBN copiado para a área de transferência.');
+          } catch {
+            showStatus('Não foi possível copiar automaticamente.', true);
+          }
+        });
+
+        printBtn?.addEventListener('click', () => window.print());
+      }
+
+      function closeModal() {
+        els.modal.classList.remove('open');
+        els.modal.setAttribute('aria-hidden', 'true');
+        currentBookForPrint = null;
+      }
+
+      function showStatus(msg, isError = false) {
+        els.statusNote.style.color = isError ? 'var(--danger)' : 'var(--success)';
+        els.statusNote.textContent = msg;
+        setTimeout(() => {
+          els.statusNote.style.color = '';
+          if (els.statusNote.textContent === msg) els.statusNote.textContent = '';
+        }, 2600);
+      }
+
+      function getHistory() {
+        try {
+          const arr = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+          return Array.isArray(arr) ? arr : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function saveHistory(type, query) {
+        const q = sanitizeText(query);
+        if (!q) return;
+        const current = getHistory();
+        const next = [{ type, query: q, ts: Date.now() }, ...current.filter(i => !(i.type === type && i.query === q))]
+          .slice(0, MAX_HISTORY);
+        localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+        renderHistory();
+      }
+
+      function renderHistory() {
+        const items = getHistory();
+        if (!items.length) {
+          els.historyList.innerHTML = '<span class="card-meta">Sem histórico por enquanto.</span>';
+          return;
+        }
+
+        els.historyList.innerHTML = items
+          .map(i => `<button class="chip" data-type="${escapeHtml(i.type)}" data-query="${escapeHtml(i.query)}">${escapeHtml(i.type.toUpperCase())}: ${escapeHtml(i.query)}</button>`)
+          .join('');
+
+        els.historyList.querySelectorAll('.chip').forEach((chip) => {
+          chip.addEventListener('click', () => {
+            const mode = chip.getAttribute('data-type');
+            const query = chip.getAttribute('data-query');
+            switchMode(mode);
+            els.input.value = query;
+            triggerSearch();
+          });
+        });
+      }
+
+      function switchMode(mode, { clearInput = false } = {}) {
+        currentMode = mode;
+        els.tabs.forEach((tab) => {
+          const isActive = tab.dataset.mode === mode;
+          tab.classList.toggle('active', isActive);
+          tab.setAttribute('aria-selected', String(isActive));
+        });
+
+        if (clearInput) {
+          els.input.value = '';
+          els.results.innerHTML = '';
+          els.stateBox.innerHTML = 'Use os exemplos: <strong>9788535902778</strong>, <strong>9780141439518</strong> ou <strong>O Pequeno Príncipe</strong>.';
+          clearTimeout(debounceTimer);
+        }
+
+        if (mode === 'title') {
+          els.input.placeholder = 'Digite o título ou nome do autor(a) (mín. 2 caracteres)';
+        } else if (mode === 'ean') {
+          els.input.placeholder = 'Digite o EAN / ISBN-13';
+        } else {
+          els.input.placeholder = 'Digite o ISBN-10 ou ISBN-13';
+        }
+
+        els.input.focus();
+      }
+
+      async function triggerSearch() {
+        const raw = els.input.value;
+        const value = currentMode === 'title' ? sanitizeText(raw) : normalizeCode(raw);
+
+        if (!value) {
+          els.stateBox.textContent = 'Digite um valor para iniciar a busca.';
+          els.results.innerHTML = '';
+          return;
+        }
+
+        setLoading(true, 'Consultando Google Books + Open Library...');
+        els.results.innerHTML = '';
+
+        try {
+          if (currentMode === 'title') {
+            const token = ++titleSearchToken;
+            const res = await fetchByTitle(value);
+            if (token !== titleSearchToken) return;
+            clearLoading();
+            if (res.error) {
+              els.stateBox.textContent = res.error;
+              return;
+            }
+            renderResults(res.data);
+            saveHistory('title', value);
+            return;
+          }
+
+          const res = await fetchByCode(value);
+          clearLoading();
+          if (res.error) {
+            els.stateBox.textContent = res.error;
+            return;
+          }
+          renderResults([res.data]);
+          saveHistory(currentMode, value);
+          openBookModal(res.data);
+        } catch {
+          clearLoading();
+          els.stateBox.textContent = 'Falha ao consultar APIs no momento. Tente novamente em instantes.';
+        }
+      }
+
+      async function setupScanner() {
+        // Verifica suporte básico do browser antes de qualquer coisa
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          showStatus('Seu navegador não suporta acesso à câmera. Use Chrome ou Firefox recentes.', true);
+          return;
+        }
+
+        // Cria o overlay antes de pedir permissão para dar feedback visual imediato
+        const overlay = document.createElement('div');
+        overlay.className = 'modal open';
+        overlay.innerHTML = `
+          <div class="modal-content" style="max-width:700px;">
+            <h3 style="margin-top:0">📷 Escanear código de barras</h3>
+            <p class="card-meta" id="scannerMsg">Solicitando permissão para a câmera...</p>
+            <div style="position:relative;width:100%;border-radius:10px;overflow:hidden;background:#000;min-height:300px;">
+              <video id="videoScanner" playsinline autoplay muted
+                style="width:100%;display:block;border-radius:10px;background:#000;min-height:300px;object-fit:cover"></video>
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;">
+                <div style="width:72%;height:55%;border:3px solid rgba(242,201,76,0.75);border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,0.45)"></div>
+              </div>
+            </div>
+            <p class="card-meta" style="margin-top:8px;font-size:.85rem;">
+              💡 Centralize o código de barras dentro da moldura amarela.
+              O sistema detecta automaticamente.
+            </p>
+            <div style="display:flex;justify-content:flex-end;margin-top:10px;gap:8px">
+              <button id="switchCamBtn" class="btn btn-secondary" style="min-height:36px;display:none">🔄 Alternar câmera</button>
+              <button id="stopScannerBtn" class="btn btn-danger" style="min-height:36px">Fechar ✕</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const video = overlay.querySelector('#videoScanner');
+        const closeBtn = overlay.querySelector('#stopScannerBtn');
+        const switchBtn = overlay.querySelector('#switchCamBtn');
+        const msgEl = overlay.querySelector('#scannerMsg');
+
+        let stopped = false;
+        let currentStream = null;
+        let reader = null;
+        let allDevices = [];
+        let deviceIndex = 0;
+
+        const stopStream = () => {
+          if (currentStream) {
+            currentStream.getTracks().forEach(t => t.stop());
+            currentStream = null;
+          }
+        };
+
+        const stop = () => {
+          if (stopped) return;
+          stopped = true;
+          stopStream();
+          try { if (reader) reader.reset(); } catch {}
+          overlay.remove();
+        };
+
+        closeBtn.addEventListener('click', stop);
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) stop(); });
+
+        const startDecoding = (stream) => {
+          video.srcObject = stream;
+          currentStream = stream;
+          msgEl.textContent = 'Câmera ativa — aponte para o código de barras.';
+
+          if (!window.ZXing || !window.ZXing.BrowserMultiFormatReader) {
+            // Fallback: exibe vídeo ao vivo com instrução manual
+            msgEl.innerHTML = '⚠️ Biblioteca ZXing não carregou. Digite o código manualmente após visualizá-lo na câmera.';
+            return;
+          }
+
+          reader = new ZXing.BrowserMultiFormatReader();
+          reader.decodeFromStream(stream, video, (result, err) => {
+            if (result && !stopped) {
+              const code = normalizeCode(result.getText());
+              if (/^\d{10}$|^\d{13}$/.test(code)) {
+                stop();
+                switchMode(code.length === 13 ? 'ean' : 'isbn');
+                els.input.value = code;
+                showStatus('Código detectado: ' + code);
+                triggerSearch();
+              }
+            }
+          });
+        };
+
+        // Tenta iniciar a câmera com diferentes estratégias em ordem de preferência
+        const tryCamera = async () => {
+          const constraintsList = [
+            // 1. Câmera traseira no mobile (ideal para scanner)
+            { video: { facingMode: { exact: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+            // 2. Câmera traseira sem exact (mais compatível)
+            { video: { facingMode: 'environment' } },
+            // 3. Câmera por deviceId específico (se listVideoInputDevices funcionar)
+            null,
+            // 4. Qualquer câmera disponível
+            { video: true }
+          ];
+
+          // Tenta pegar lista de dispositivos para opção 3
+          try {
+            if (window.ZXing && window.ZXing.BrowserCodeReader) {
+              allDevices = await ZXing.BrowserCodeReader.listVideoInputDevices();
+              if (allDevices.length > 1) {
+                switchBtn.style.display = 'inline-flex';
+                // Prefere câmera traseira
+                const backIdx = allDevices.findIndex(d => /back|traseira|rear|environment/i.test(d.label));
+                deviceIndex = backIdx >= 0 ? backIdx : 0;
+                constraintsList[2] = { video: { deviceId: { exact: allDevices[deviceIndex].deviceId } } };
+              } else if (allDevices.length === 1) {
+                constraintsList[2] = { video: { deviceId: { exact: allDevices[0].deviceId } } };
+              }
+            }
+          } catch { /* silencia erro de listagem */ }
+
+          for (const constraints of constraintsList) {
+            if (constraints === null) continue;
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia(constraints);
+              startDecoding(stream);
+              return;
+            } catch (err) {
+              // NotAllowedError = usuário negou permissão — para imediatamente
+              if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                stop();
+                showStatus('Permissão de câmera negada. Clique no ícone 🔒 na barra de endereço e permita o acesso.', true);
+                return;
+              }
+              // Outros erros: tenta próxima constraint
+            }
+          }
+
+          // Nenhuma constraint funcionou
+          stop();
+          showStatus('Não foi possível acessar a câmera. Verifique as permissões do navegador e tente em HTTPS ou localhost.', true);
+        };
+
+        // Botão de alternar câmera
+        switchBtn.addEventListener('click', async () => {
+          if (!allDevices.length) return;
+          deviceIndex = (deviceIndex + 1) % allDevices.length;
+          stopStream();
+          try { if (reader) reader.reset(); } catch {}
+          reader = null;
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: { exact: allDevices[deviceIndex].deviceId } }
+            });
+            startDecoding(stream);
+            msgEl.textContent = `Câmera ${deviceIndex + 1}/${allDevices.length} — ${allDevices[deviceIndex].label || 'Câmera ' + (deviceIndex + 1)}`;
+          } catch {
+            showStatus('Não foi possível alternar a câmera.', true);
+          }
+        });
+
+        await tryCamera();
+      }
+
+      function setupEvents() {
+        els.tabs.forEach((tab) => {
+          tab.addEventListener('click', () => switchMode(tab.dataset.mode, { clearInput: true }));
+        });
+
+        els.searchBtn.addEventListener('click', triggerSearch);
+        els.input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') triggerSearch();
+        });
+
+        els.input.addEventListener('input', () => {
+          if (currentMode !== 'title') return;
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            if (sanitizeText(els.input.value).length >= 2) triggerSearch();
+          }, 500);
+        });
+
+        els.scanBtn.addEventListener('click', setupScanner);
+        els.closeModal.addEventListener('click', closeModal);
+        els.modal.addEventListener('click', (e) => {
+          if (e.target === els.modal) closeModal();
+        });
+
+        els.clearHistoryBtn.addEventListener('click', () => {
+          localStorage.removeItem(HISTORY_KEY);
+          renderHistory();
+          showStatus('Histórico limpo.');
+        });
+      }
+
+      function registerServiceWorker() {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('./sw.js').catch(() => {});
+        }
+      }
+
+      function init() {
+        setupEvents();
+        renderHistory();
+        switchMode('isbn');
+        registerServiceWorker();
+      }
+
+      init();
+    })();
+  </script>
+</body>
+</html>
