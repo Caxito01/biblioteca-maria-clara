@@ -1,4 +1,4 @@
-const CACHE_NAME = 'biblioteca-shell-v3';
+const CACHE_NAME = 'biblioteca-shell-v4';
 const STATIC_ASSETS = [
   './',
   './index.html',
