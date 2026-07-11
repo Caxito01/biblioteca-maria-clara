@@ -466,7 +466,7 @@
       // Google Books agora exige API key (chamadas anônimas retornam 429/quota 0).
       // Gere uma gratuita em https://console.cloud.google.com/apis/credentials
       // (ative a "Books API" no projeto) e cole a chave abaixo.
-      const GOOGLE_BOOKS_API_KEY = '';
+      const GOOGLE_BOOKS_API_KEY = 'AIzaSyBVmao-zWSFXDl3vnVtF-cBUklu9XqtVHI';
 
       function googleBooksUrl(query, extraParams = '') {
         const key = GOOGLE_BOOKS_API_KEY ? `&key=${encodeURIComponent(GOOGLE_BOOKS_API_KEY)}` : '';
