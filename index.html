@@ -753,19 +753,94 @@
         els.results.innerHTML = books.map(renderCard).join('');
 
         els.results.querySelectorAll('.card').forEach((card) => {
-          card.addEventListener('click', () => {
+          card.addEventListener('click', async () => {
             const id = card.getAttribute('data-book-id');
             const selected = books.find((b) => String(b.id) === String(id));
-            if (selected) openBookModal(selected);
+            if (!selected) return;
+
+            const shouldEnrich = needsEnrichment(selected);
+            openBookModal(selected, { enriching: shouldEnrich });
+
+            if (shouldEnrich) {
+              const enriched = await enrichBookDetails(selected);
+              if (currentBookForPrint?.id === selected.id && els.modal.classList.contains('open')) {
+                openBookModal(enriched);
+              }
+            }
           });
         });
       }
 
-      function renderBookDetails(book) {
+      function needsEnrichment(book) {
+        if (!book) return false;
+        const missing = [
+          !book.publisher,
+          !book.pageCount,
+          !book.isbn13,
+          !book.isbn10,
+          !(book.categories && book.categories.length),
+          !book.averageRating,
+          !book.previewLink,
+          !book.description
+        ].filter(Boolean).length;
+        return missing >= 3;
+      }
+
+      function fillMissing(primary, extra) {
+        if (!extra) return primary;
+        return {
+          ...primary,
+          subtitle: primary.subtitle || extra.subtitle,
+          authors: primary.authors?.length ? primary.authors : extra.authors,
+          publisher: primary.publisher || extra.publisher,
+          publishedDate: primary.publishedDate || extra.publishedDate,
+          pageCount: primary.pageCount || extra.pageCount,
+          isbn10: primary.isbn10 || extra.isbn10,
+          isbn13: primary.isbn13 || extra.isbn13,
+          categories: primary.categories?.length ? primary.categories : extra.categories,
+          language: primary.language || extra.language,
+          description: primary.description || extra.description,
+          coverSmall: primary.coverSmall || extra.coverSmall,
+          coverMedium: primary.coverMedium || extra.coverMedium,
+          coverLarge: primary.coverLarge || extra.coverLarge,
+          averageRating: primary.averageRating ?? extra.averageRating,
+          previewLink: primary.previewLink || extra.previewLink,
+          sourceGoogle: primary.sourceGoogle || extra.sourceGoogle,
+          sourceOpen: primary.sourceOpen || extra.sourceOpen
+        };
+      }
+
+      async function enrichBookDetails(book) {
+        const isbn = book.isbn13 || book.isbn10;
+        if (isbn) {
+          const result = await fetchByCode(isbn);
+          return result?.data ? fillMissing(book, result.data) : book;
+        }
+
+        if (!book.title) return book;
+
+        const author = book.authors?.[0];
+        const query = `intitle:${encodeURIComponent(book.title)}` + (author ? `+inauthor:${encodeURIComponent(author)}` : '');
+        const googleData = await safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`);
+        const googleBook = googleData?.items?.[0] ? toUnifiedFromGoogle(googleData.items[0]) : null;
+        if (!googleBook) return book;
+
+        const merged = fillMissing(book, googleBook);
+        const mergedIsbn = merged.isbn13 || merged.isbn10;
+        if (!mergedIsbn) return merged;
+
+        const openResult = await fetchByCode(mergedIsbn);
+        return openResult?.data ? fillMissing(merged, openResult.data) : merged;
+      }
+
+      function renderBookDetails(book, opts = {}) {
         const cover = pickCover(book) || placeholderSvgDataUri(book.title);
         const categories = book.categories?.length ? book.categories.join(', ') : 'Não informado';
         const description = book.description || 'Sinopse não disponível.';
         const avg = book.averageRating ? `${book.averageRating} / 5` : 'Não disponível';
+        const enrichingNote = opts.enriching
+          ? '<p class="card-meta" style="margin:-8px 0 12px;color:#ffd36b;">Buscando detalhes completos...</p>'
+          : '';
 
         return `
           <div class="modal-top">
@@ -775,6 +850,7 @@
             <div class="details">
               <h2>${escapeHtml(book.title)}</h2>
               <p class="sub">${escapeHtml(book.subtitle || 'Sem subtítulo')}</p>
+              ${enrichingNote}
 
               <div class="info-grid">
                 <div class="info-item"><span class="label">Autores:</span> ${escapeHtml(formatAuthors(book.authors))}</div>
@@ -800,9 +876,9 @@
         `;
       }
 
-      function openBookModal(book) {
+      function openBookModal(book, opts = {}) {
         currentBookForPrint = book;
-        els.modalBody.innerHTML = renderBookDetails(book);
+        els.modalBody.innerHTML = renderBookDetails(book, opts);
         els.modal.classList.add('open');
         els.modal.setAttribute('aria-hidden', 'false');
 
