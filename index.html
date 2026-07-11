@@ -463,6 +463,16 @@
       const HISTORY_KEY = 'biblioteca_buscas_recentes_v1';
       const MAX_HISTORY = 8;
 
+      // Google Books agora exige API key (chamadas anônimas retornam 429/quota 0).
+      // Gere uma gratuita em https://console.cloud.google.com/apis/credentials
+      // (ative a "Books API" no projeto) e cole a chave abaixo.
+      const GOOGLE_BOOKS_API_KEY = '';
+
+      function googleBooksUrl(query, extraParams = '') {
+        const key = GOOGLE_BOOKS_API_KEY ? `&key=${encodeURIComponent(GOOGLE_BOOKS_API_KEY)}` : '';
+        return `https://www.googleapis.com/books/v1/volumes?q=${query}${extraParams}${key}`;
+      }
+
       let currentMode = 'isbn';
       let debounceTimer = null;
       let titleSearchToken = 0;
@@ -640,7 +650,7 @@
         }
 
         const [googleData, openData] = await Promise.all([
-          safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=isbn:${encodeURIComponent(clean)}`),
+          safeFetchJson(googleBooksUrl(`isbn:${encodeURIComponent(clean)}`)),
           safeFetchJson(`https://openlibrary.org/isbn/${encodeURIComponent(clean)}.json`)
         ]);
 
@@ -657,7 +667,7 @@
         if (!clean || clean.length < 2) return { error: 'Digite ao menos 2 caracteres para buscar por título.' };
 
         const [googleData, openData] = await Promise.all([
-          safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=intitle:${encodeURIComponent(clean)}+OR+inauthor:${encodeURIComponent(clean)}&maxResults=20`),
+          safeFetchJson(googleBooksUrl(`intitle:${encodeURIComponent(clean)}+OR+inauthor:${encodeURIComponent(clean)}`, '&maxResults=20')),
           safeFetchJson(`https://openlibrary.org/search.json?q=${encodeURIComponent(clean)}&limit=20`)
         ]);
 
@@ -821,7 +831,7 @@
 
         const author = book.authors?.[0];
         const query = `intitle:${encodeURIComponent(book.title)}` + (author ? `+inauthor:${encodeURIComponent(author)}` : '');
-        const googleData = await safeFetchJson(`https://www.googleapis.com/books/v1/volumes?q=${query}&maxResults=1`);
+        const googleData = await safeFetchJson(googleBooksUrl(query, '&maxResults=1'));
         const googleBook = googleData?.items?.[0] ? toUnifiedFromGoogle(googleData.items[0]) : null;
         if (!googleBook) return book;
 
